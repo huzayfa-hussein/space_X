@@ -11,7 +11,10 @@ import com.hu.spacex.ui.items.LaunchUiItem
 class MainActivity : AppCompatActivity() {
 
     lateinit var binding: ActivityMainBinding
-    lateinit var viewModel: MainViewModel
+    private val viewModel by lazy {
+        ViewModelProvider(this)[MainViewModel::class.java]
+    }
+
     private val adapter by lazy {
         LaunchAdapter(arrayListOf()) {
             handleItemClicked(it)
@@ -30,7 +33,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         callDummyData()
         observeData()
