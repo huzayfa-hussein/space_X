@@ -1,5 +1,6 @@
 package com.hu.spacex.di
 
+import com.hu.spacex.data.AppRepositoryImpl
 import com.hu.spacex.data.remote.ApiService
 import com.hu.spacex.data.remote.Constants
 import dagger.Module
@@ -57,14 +58,13 @@ object NetworkModule {
     }
 
 
-//    @Provides
-//    @Singleton
-//    fun provideAppRepository(
-//        appServices: ApiServices,
-//        daoService: DaoService
-//    ): AppRepositoryImpl {
-//        return AppRepositoryImpl(appServices, daoService)
-//    }
+    @Provides
+    @Singleton
+    fun provideAppRepository(
+        appServices: ApiService
+    ): AppRepositoryImpl {
+        return AppRepositoryImpl(appServices)
+    }
 
 
 }

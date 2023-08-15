@@ -3,28 +3,57 @@ package com.hu.spacex.ui
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.hu.spacex.data.AppRepositoryImpl
+import com.hu.spacex.data.common.Resource
 import com.hu.spacex.ui.items.CompanyInfoUiItem
 import com.hu.spacex.ui.items.LaunchUiItem
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.collectIndexed
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MainViewModel : ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(private val appRepositoryImpl: AppRepositoryImpl) :
+    ViewModel() {
 
-    private var _companyInfoData = MutableLiveData<CompanyInfoUiItem>()
-    val companyInfoData: LiveData<CompanyInfoUiItem> = _companyInfoData
+    private var _companyInfoData = MutableLiveData<Resource<CompanyInfoUiItem>>()
+    val companyInfoData: LiveData<Resource<CompanyInfoUiItem>> = _companyInfoData
 
     private var _launchListData = MutableLiveData<ArrayList<LaunchUiItem>>()
     val launchListData: LiveData<ArrayList<LaunchUiItem>> = _launchListData
 
-    fun generateDummyCompanyInfo() {
-        val item = CompanyInfoUiItem(
-            companyName = "SpaceX",
-            founderName = "Huzayfa",
-            foundedYear = "1997",
-            sitesNumber = "3",
-            employeesNumber = "2000",
-            valuation = "250000"
-        )
 
-        _companyInfoData.value = item
+    fun getCompanyInfoData() {
+        viewModelScope.launch {
+            appRepositoryImpl.fetchCompanyInfo().collectLatest {
+                when (it) {
+                    is Resource.Success -> {
+                        val companyData = it.data
+                        if (companyData == null) {
+                            _companyInfoData.value = Resource.Error(message = "No Data available")
+                        } else {
+                            val item = CompanyInfoUiItem(
+                                companyName = companyData.name,
+                                founderName = companyData.founder,
+                                foundedYear = companyData.founded,
+                                sitesNumber = companyData.launchSites,
+                                employeesNumber = companyData.employees,
+                                valuation = companyData.valuation
+                            )
+                            _companyInfoData.value = Resource.Success(item)
+                        }
+                    }
+
+                    is Resource.Error -> {
+                        _companyInfoData.value = Resource.Error(message = it.message)
+                    }
+
+                    else -> {}
+                }
+            }
+        }
     }
 
     fun generateDummyLaunches() {
