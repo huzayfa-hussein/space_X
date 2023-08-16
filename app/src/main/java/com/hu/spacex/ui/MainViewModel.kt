@@ -6,6 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hu.spacex.data.AppRepositoryImpl
 import com.hu.spacex.data.common.Resource
+import com.hu.spacex.data.common.onError
+import com.hu.spacex.data.common.onSuccess
+import com.hu.spacex.extensions.DATE_FORMAT
+import com.hu.spacex.extensions.TIME_FORMAT
+import com.hu.spacex.extensions.calculateDays
+import com.hu.spacex.extensions.getFormattedDate
+import com.hu.spacex.extensions.isInPast
 import com.hu.spacex.ui.items.CompanyInfoUiItem
 import com.hu.spacex.ui.items.LaunchUiItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,68 +28,83 @@ class MainViewModel @Inject constructor(private val appRepositoryImpl: AppReposi
     private var _companyInfoData = MutableLiveData<Resource<CompanyInfoUiItem>>()
     val companyInfoData: LiveData<Resource<CompanyInfoUiItem>> = _companyInfoData
 
-    private var _launchListData = MutableLiveData<ArrayList<LaunchUiItem>>()
-    val launchListData: LiveData<ArrayList<LaunchUiItem>> = _launchListData
+    private var _launchListData = MutableLiveData<Resource<ArrayList<LaunchUiItem>>>()
+    val launchListData: LiveData<Resource<ArrayList<LaunchUiItem>>> = _launchListData
+
+    private var _loaderStatus = MutableLiveData<Boolean>()
+    val loaderStatus: LiveData<Boolean> = _loaderStatus
 
 
     fun getCompanyInfoData() {
         viewModelScope.launch {
+            _loaderStatus.value = true
             appRepositoryImpl.fetchCompanyInfo().collectLatest {
-                when (it) {
-                    is Resource.Success -> {
-                        val companyData = it.data
-                        if (companyData == null) {
-                            _companyInfoData.value = Resource.Error(message = "No Data available")
-                        } else {
-                            val item = CompanyInfoUiItem(
-                                companyName = companyData.name,
-                                founderName = companyData.founder,
-                                foundedYear = companyData.founded,
-                                sitesNumber = companyData.launchSites,
-                                employeesNumber = companyData.employees,
-                                valuation = companyData.valuation
-                            )
-                            _companyInfoData.value = Resource.Success(item)
-                        }
-                    }
-
-                    is Resource.Error -> {
-                        _companyInfoData.value = Resource.Error(message = it.message)
-                    }
-
-                    else -> {}
+                it.onSuccess { companyData ->
+                    val item = CompanyInfoUiItem(
+                        companyName = companyData.name,
+                        founderName = companyData.founder,
+                        foundedYear = companyData.founded,
+                        sitesNumber = companyData.launchSites,
+                        employeesNumber = companyData.employees,
+                        valuation = companyData.valuation
+                    )
+                    _loaderStatus.value = false
+                    _companyInfoData.value = Resource.Success(item)
+                }.onError { message, _ ->
+                    _companyInfoData.value = Resource.Error(message = message)
+                    _loaderStatus.value = false
                 }
             }
         }
     }
 
-    fun generateDummyLaunches() {
-        val items = arrayListOf<LaunchUiItem>(
-            LaunchUiItem(
-                missionName = "FalconSat",
-                missionDateAndTimes = "25 Mar 2006 at 01:30 am",
-                rocketName = "Falcon 1 / Merlin A",
-                launchDays = "6348",
-                launchDaysLabel = "Days since now:",
-                isSuccessful = false
-            ), LaunchUiItem(
-                missionName = "FalconSat",
-                missionDateAndTimes = "25 Mar 2006 at 01:30 am",
-                rocketName = "Falcon 1 / Merlin A",
-                launchDays = "6348",
-                launchDaysLabel = "Days from now:",
-                isSuccessful = true
-            ),
-            LaunchUiItem(
-                missionName = "FalconSat",
-                missionDateAndTimes = "25 Mar 2006 at 01:30 am",
-                rocketName = "Falcon 1 / Merlin A",
-                launchDays = "6348",
-                launchDaysLabel = "Days from now:",
-                isSuccessful = false,
-                showSeparator = false
-            )
-        )
-        _launchListData.value = items
+
+    fun getAllLaunches() {
+        viewModelScope.launch {
+            appRepositoryImpl.fetchLaunches().collectLatest {
+                it.onSuccess { launches ->
+                    val sortedLaunches = launches.sortedByDescending { data -> data.date }
+                    val items = arrayListOf<LaunchUiItem>()
+                    sortedLaunches.forEach { launch ->
+                        items.add(
+                            LaunchUiItem(
+                                missionName = launch.missionName,
+                                launchIcon = launch.links.image ?: "",
+                                rocketName = "${launch.rocket.rocketName} / ${launch.rocket.rocketType}",
+                                missionDateAndTimes = getMissionDateAndTime(launch.date * 1000L),
+                                isSuccessful = launch.launchSuccess,
+                                launchDays = getLaunchDays(launch.date * 1000L),
+                                launchDaysLabel = getLaunchDaysLabel(launch.date * 1000L),
+                                articleLink = launch.links.articleLink ?: "",
+                                youtubeLink = launch.links.youtubeLink ?: "",
+                                wikipediaLink = launch.links.wikipediaLink ?: ""
+                            )
+                        )
+                    }
+                    _launchListData.value = Resource.Success(items)
+                    _loaderStatus.value = false
+
+                }
+            }
+        }
     }
+
+    private fun getLaunchDaysLabel(date: Long): String {
+        return if (date.isInPast()) {
+            "Days since now:"
+        } else {
+            "Days from now:"
+        }
+    }
+
+    private fun getLaunchDays(date: Long): String {
+        return date.calculateDays()
+    }
+
+    private fun getMissionDateAndTime(date: Long): String {
+        val dateString = date.getFormattedDate(format = DATE_FORMAT)
+        val timeString = date.getFormattedDate(format = TIME_FORMAT)
+        return "$dateString at $timeString"
+    }
+
 }

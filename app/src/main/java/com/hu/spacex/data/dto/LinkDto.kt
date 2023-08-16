@@ -5,11 +5,11 @@ import java.io.Serializable
 
 data class LinkDto(
     @SerializedName("mission_patch_small")
-    val image: String,
+    val image: String?,
     @SerializedName("article_link")
-    val articleLink: String,
+    val articleLink: String?,
     @SerializedName("video_link")
-    val youtubeLink: String,
+    val youtubeLink: String?,
     @SerializedName("wikipedia")
-    val wikipediaLink: String
+    val wikipediaLink: String?
 ) : Serializable

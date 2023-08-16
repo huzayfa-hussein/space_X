@@ -79,6 +79,18 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.44")
     kapt("androidx.hilt:hilt-compiler:1.0.0")
     implementation("androidx.hilt:hilt-navigation-fragment:1.0.0")
+
+    // room
+
+    val room_version = "2.5.2"
+
+    implementation("androidx.room:room-runtime:$room_version")
+
+    // To use Kotlin annotation processing tool (kapt)
+    kapt("androidx.room:room-compiler:$room_version")
+
+    // optional - Kotlin Extensions and Coroutines support for Room
+    implementation("androidx.room:room-ktx:$room_version")
 }
 kapt {
     correctErrorTypes = true
